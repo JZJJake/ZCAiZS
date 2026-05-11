@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>政策解答 AI 助手</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .chat-container { width: 100%; max-width: 800px; height: 90vh; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
+        .header { background: #1a73e8; color: white; padding: 20px; text-align: center; font-size: 1.2em; font-weight: bold; }
+        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .message { max-width: 80%; padding: 12px 16px; border-radius: 18px; line-height: 1.5; word-wrap: break-word; }
+        .bot { background: #f0f2f5; color: #333; align-self: flex-start; border-bottom-left-radius: 4px; }
+        .user { background: #1a73e8; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .input-area { padding: 15px; background: white; border-top: 1px solid #ddd; display: flex; gap: 10px; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 24px; outline: none; font-size: 1em; }
+        button { padding: 12px 24px; background: #1a73e8; color: white; border: none; border-radius: 24px; cursor: pointer; font-size: 1em; transition: background 0.2s; }
+        button:hover { background: #1557b0; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .disabled-overlay { position: absolute; top:0; left:0; right:0; bottom:0; background: rgba(255,255,255,0.8); display: flex; justify-content: center; align-items: center; z-index: 10; font-size: 1.5em; color: #d32f2f; font-weight: bold;}
+        .loading { font-style: italic; color: #888; }
+    </style>
+</head>
+<body>
+
+<div class="chat-container" style="position: relative;">
+    {% if not enabled %}
+    <div class="disabled-overlay">
+        系统维护中，暂不提供服务。
+    </div>
+    {% endif %}
+
+    <div class="header">政策解答 AI 助手</div>
+    <div class="messages" id="messages">
+        <div class="message bot">您好！我是政策解答AI助手。请在下方输入您关心的政策问题，我将为您提供专业的解答。</div>
+    </div>
+    <div class="input-area">
+        <input type="text" id="userInput" placeholder="请输入您的问题，例如：什么是高新技术企业认定？" autocomplete="off" {% if not enabled %}disabled{% endif %}>
+        <button id="sendBtn" onclick="sendMessage()" {% if not enabled %}disabled{% endif %}>发送</button>
+    </div>
+</div>
+
+<script>
+    const messagesDiv = document.getElementById('messages');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    userInput.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+    function appendMessage(text, sender) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${sender}`;
+        // Simple markdown newlines to br
+        msgDiv.innerHTML = text.replace(/\n/g, '<br>');
+        messagesDiv.appendChild(msgDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        return msgDiv;
+    }
+
+    async function sendMessage() {
+        const query = userInput.value.trim();
+        if (!query) return;
+
+        appendMessage(query, 'user');
+        userInput.value = '';
+        userInput.disabled = true;
+        sendBtn.disabled = true;
+
+        const loadingMsg = appendMessage('正在思考中...', 'bot loading');
+
+        try {
+            const response = await fetch('/api/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query })
+            });
+            const data = await response.json();
+
+            messagesDiv.removeChild(loadingMsg);
+
+            if (response.ok) {
+                appendMessage(data.answer, 'bot');
+            } else {
+                appendMessage(data.error || '发生错误，请稍后再试。', 'bot');
+            }
+        } catch (err) {
+            messagesDiv.removeChild(loadingMsg);
+            appendMessage('网络连接失败，请稍后重试。', 'bot');
+        } finally {
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+            userInput.focus();
+        }
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统管理后台</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h1, h2 { margin-top: 0; color: #1a73e8; }
+        .stat-box { display: flex; justify-content: space-between; background: #e8f0fe; padding: 15px; border-radius: 8px; margin-bottom: 10px; font-weight: bold; }
+        button { padding: 10px 20px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #1557b0; }
+        .btn-danger { background: #d32f2f; }
+        .btn-danger:hover { background: #b71c1c; }
+        .form-group { margin-bottom: 15px; }
+        input[type="file"] { border: 1px solid #ccc; padding: 10px; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        #network { width: 100%; height: 600px; border: 1px solid lightgray; background: #fafafa; border-radius: 8px; }
+        .flash { padding: 10px; background: #d4edda; color: #155724; border-radius: 4px; margin-bottom: 15px; }
+        .switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #2196F3; }
+        input:checked + .slider:before { transform: translateX(26px); }
+        .toggle-row { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
+    </style>
+    <!-- Include Vis.js for Network Graph -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+</head>
+<body>
+
+<h1>系统管理后台</h1>
+
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    {% for message in messages %}
+      <div class="flash">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="container">
+    <!-- Left Column: Controls -->
+    <div>
+        <div class="panel">
+            <h2>系统控制</h2>
+            <div class="toggle-row">
+                <label class="switch">
+                    <input type="checkbox" id="clientToggle" onchange="toggleClient()" {% if enabled %}checked{% endif %}>
+                    <span class="slider"></span>
+                </label>
+                <span id="toggleStatusText">客户端连接：{% if enabled %}已开启{% else %}已关闭{% endif %}</span>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>数据导入</h2>
+            <form action="/api/admin/upload" method="post" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label>上传 Markdown 格式知识库：</label><br><br>
+                    <input type="file" name="file" accept=".md" required>
+                </div>
+                <button type="submit">开始计算生成</button>
+            </form>
+        </div>
+
+        <div class="panel">
+            <h2>向量数据库管理</h2>
+            <div class="stat-box"><span>问答文档数量：</span> <span>{{ stats.documents }}</span></div>
+            <div class="stat-box"><span>图谱实体节点：</span> <span>{{ stats.nodes }}</span></div>
+            <div class="stat-box"><span>图谱关系连线：</span> <span>{{ stats.edges }}</span></div>
+
+            <br>
+            <button class="btn-danger" onclick="clearDatabase()">清空数据库</button>
+        </div>
+    </div>
+
+    <!-- Right Column: Graph -->
+    <div class="panel">
+        <h2>知识图谱关系网图</h2>
+        <div id="network"></div>
+    </div>
+</div>
+
+<script>
+    async function toggleClient() {
+        const isChecked = document.getElementById('clientToggle').checked;
+        const statusText = document.getElementById('toggleStatusText');
+
+        try {
+            const res = await fetch('/api/admin/toggle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: isChecked })
+            });
+            const data = await res.json();
+            statusText.innerText = `客户端连接：${data.enabled ? '已开启' : '已关闭'}`;
+        } catch (e) {
+            alert("切换失败");
+            // Revert visually
+            document.getElementById('clientToggle').checked = !isChecked;
+        }
+    }
+
+    async function clearDatabase() {
+        if(confirm("确定要清空所有向量数据和图谱数据吗？此操作不可逆！")) {
+            try {
+                const res = await fetch('/api/admin/clear', { method: 'POST' });
+                const data = await res.json();
+                if(data.success) {
+                    alert("数据库已清空");
+                    location.reload();
+                } else {
+                    alert("清空失败: " + data.error);
+                }
+            } catch (e) {
+                alert("网络错误");
+            }
+        }
+    }
+
+    // Load and render Network Graph
+    async function loadGraph() {
+        try {
+            const res = await fetch('/api/admin/graph_data');
+            const data = await res.json();
+
+            const container = document.getElementById('network');
+            const nodes = new vis.DataSet(data.nodes);
+            const edges = new vis.DataSet(data.edges);
+
+            const graphData = { nodes: nodes, edges: edges };
+            const options = {
+                nodes: {
+                    shape: 'dot',
+                    size: 16,
+                    font: { size: 14, color: '#333' },
+                    borderWidth: 2
+                },
+                edges: {
+                    width: 2,
+                    font: { size: 12, align: 'middle' },
+                    arrows: 'to',
+                    color: '#848484'
+                },
+                physics: {
+                    stabilization: false,
+                    barnesHut: {
+                        gravitationalConstant: -2000,
+                        springConstant: 0.04,
+                        springLength: 95
+                    }
+                }
+            };
+
+            new vis.Network(container, graphData, options);
+        } catch(e) {
+            console.error("加载图谱失败", e);
+        }
+    }
+
+    // Init graph on load
+    window.onload = loadGraph;
+</script>
+
+</body>
+</html>
