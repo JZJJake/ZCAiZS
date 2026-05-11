@@ -15,6 +15,9 @@ IF %ERRORLEVEL% NEQ 0 (
 )
 
 echo [1/3] Checking and installing dependencies...
+echo Upgrading pip to avoid build issues...
+python -m pip install --upgrade pip
+
 echo Using Tsinghua PyPI Mirror to speed up downloads...
 pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
 IF %ERRORLEVEL% NEQ 0 (

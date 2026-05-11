@@ -1,4 +1,8 @@
 import os
+
+# Use HuggingFace mirror for users in mainland China
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
 from sentence_transformers import SentenceTransformer
 
 def download_model():
@@ -9,9 +13,9 @@ def download_model():
         print(f"Model already exists at {save_path}. Skipping download.")
         return
 
-    print(f"Downloading model {model_name} to {save_path}...")
+    print(f"Downloading model {model_name} to {save_path} using mirror https://hf-mirror.com ...")
     try:
-        # Load model from huggingface
+        # Load model from huggingface mirror
         model = SentenceTransformer(model_name)
         # Save model locally
         model.save(save_path)

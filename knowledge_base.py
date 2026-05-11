@@ -95,15 +95,13 @@ class KnowledgeBase:
                 elif block.startswith("答：") and current_q is not None:
                     current_a = block.replace("答：", "").strip()
                     qa_pairs.append((current_q, current_a))
-                    current_q = None
-                    current_a = None
                 else:
                     # Append to current answer if any
                     if current_a is not None:
                         current_a += "\n" + block
                         # Update the last pair
                         if qa_pairs:
-                           qa_pairs[-1] = (qa_pairs[-1][0], qa_pairs[-1][1] + "\n" + block)
+                           qa_pairs[-1] = (qa_pairs[-1][0], current_a)
 
         except Exception as e:
             print(f"Error parsing markdown {filepath}: {e}")
