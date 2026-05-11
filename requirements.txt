@@ -1,5 +1,5 @@
 Flask==3.0.3
-chromadb==0.4.24
+chromadb==0.5.5
 sentence-transformers==2.7.0
 openai==1.25.0
 networkx==3.3
