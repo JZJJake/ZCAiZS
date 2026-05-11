@@ -15,7 +15,8 @@ IF %ERRORLEVEL% NEQ 0 (
 )
 
 echo [1/3] Checking and installing dependencies...
-pip install -r requirements.txt
+echo Using Tsinghua PyPI Mirror to speed up downloads...
+pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
 IF %ERRORLEVEL% NEQ 0 (
     echo [Warning] There might be an issue with dependencies. Trying to continue...
 ) ELSE (
