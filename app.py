@@ -75,8 +75,20 @@ def api_upload_md():
 
         # Process into KnowledgeBase
         try:
-            count = kb.process_file(filepath)
-            flash(f'成功处理文件 {filename}，共导入 {count} 条问答记录。')
+            import threading
+            qa_pairs = kb.parse_markdown(filepath)
+            count = kb.add_to_vector_db(qa_pairs)
+
+            # Run graph extraction asynchronously
+            def extract_graph_async(app_context, pairs):
+                with app_context:
+                    kb.extract_graph_data(pairs)
+
+            app_context = app.app_context()
+            thread = threading.Thread(target=extract_graph_async, args=(app_context, qa_pairs))
+            thread.start()
+
+            flash(f'成功处理文件 {filename}，共导入 {count} 条问答记录。知识图谱提取正在后台运行，请稍后刷新查看。')
         except Exception as e:
             flash(f'处理文件时发生错误: {e}')
 

@@ -176,6 +176,15 @@ class KnowledgeBase:
                 )
 
                 content = response.choices[0].message.content
+                # Strip markdown code blocks if the LLM includes them
+                content = content.strip()
+                if content.startswith("```json"):
+                    content = content[7:]
+                elif content.startswith("```"):
+                    content = content[3:]
+                if content.endswith("```"):
+                    content = content[:-3]
+
                 data = json.loads(content)
                 self._save_graph_data(data)
 
