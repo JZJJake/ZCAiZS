@@ -1,10 +1,17 @@
 import os
+from dotenv import load_dotenv
+
+# 明确将当前目录加入 sys.path 防止由于模块寻找问题引发未解包现象
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# 加载环境变量必须在其他导入之前
+load_dotenv(override=True)
+
 from flask import Flask, request, jsonify, render_template, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 from knowledge_base import KnowledgeBase
-from dotenv import load_dotenv
-
-load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "super-secret-key-for-dev")
