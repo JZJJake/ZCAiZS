@@ -110,8 +110,11 @@ class KnowledgeBase:
 
     def get_embeddings(self, texts):
         """Get embeddings using the local model."""
-        print(f"Generating embeddings for {len(texts)} texts...")
+        print(f"=========================================")
+        print(f"[后台任务] Generating embeddings for {len(texts)} texts...")
         embeddings = self.embedding_model.encode(texts, show_progress_bar=True)
+        print(f"[完成] Embeddings generated.")
+        print(f"=========================================")
         return embeddings.tolist()
 
     def add_to_vector_db(self, qa_pairs):
@@ -149,9 +152,11 @@ class KnowledgeBase:
             print("Cannot extract graph data: No DeepSeek API Key.")
             return
 
-        print(f"Starting Knowledge Graph extraction for {len(qa_pairs)} pairs using DeepSeek...")
+        print(f"=========================================")
+        print(f"[后台任务] Starting Knowledge Graph extraction for {len(qa_pairs)} pairs using DeepSeek...")
+        print(f"=========================================")
         for i, (q, a) in enumerate(qa_pairs):
-            print(f"Extracting graph data for pair {i+1}/{len(qa_pairs)}...")
+            print(f"[进度] Extracting graph data for pair {i+1}/{len(qa_pairs)}... (Q: {q[:20]}...)")
             prompt = f"""
             分析以下政策问答，提取其中的核心实体和关系。
             实体(Entity)包括：机构、政策名词、条件、数字指标、资格等。
@@ -197,7 +202,8 @@ class KnowledgeBase:
             except Exception as e:
                 print(f"Error extracting graph data for '{q}': {e}")
 
-        print("Knowledge Graph extraction complete.")
+        print("[完成] Knowledge Graph extraction complete.")
+        print(f"=========================================")
 
     def _save_graph_data(self, data):
         """Save extracted entities and relationships to SQLite."""

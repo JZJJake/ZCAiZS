@@ -1,10 +1,12 @@
 import os
+from dotenv import load_dotenv
+
+# 加载环境变量必须在其他导入之前
+load_dotenv()
+
 from flask import Flask, request, jsonify, render_template, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 from knowledge_base import KnowledgeBase
-from dotenv import load_dotenv
-
-load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "super-secret-key-for-dev")
