@@ -32,8 +32,8 @@ class KnowledgeBase:
             # Fallback for dev if user didn't run download_model.py
             self.embedding_model = SentenceTransformer("shibing624/text2vec-base-chinese")
 
-        # Init DeepSeek Client (API key should be set in environment variable DEEPSEEK_API_KEY)
-        self.deepseek_api_key = os.environ.get("DEEPSEEK_API_KEY")
+        # Init DeepSeek Client (API key should be set in environment variable DEEPSEEK_API_KEY or APIKEY)
+        self.deepseek_api_key = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("APIKEY")
         if self.deepseek_api_key:
             self.llm_client = OpenAI(
                 api_key=self.deepseek_api_key,
@@ -41,7 +41,7 @@ class KnowledgeBase:
             )
         else:
             self.llm_client = None
-            print("Warning: DEEPSEEK_API_KEY environment variable not set. Graph extraction and QA will not work properly.")
+            print("Warning: Neither DEEPSEEK_API_KEY nor APIKEY environment variable is set. Graph extraction and QA will not work properly.")
 
     def _init_sqlite(self):
         conn = sqlite3.connect(self.db_path)
@@ -110,7 +110,8 @@ class KnowledgeBase:
 
     def get_embeddings(self, texts):
         """Get embeddings using the local model."""
-        embeddings = self.embedding_model.encode(texts)
+        print(f"Generating embeddings for {len(texts)} texts...")
+        embeddings = self.embedding_model.encode(texts, show_progress_bar=True)
         return embeddings.tolist()
 
     def add_to_vector_db(self, qa_pairs):
@@ -122,6 +123,7 @@ class KnowledgeBase:
         metadatas = []
         ids = []
 
+        print(f"Preparing {len(qa_pairs)} QA pairs for vector database insertion...")
         for q, a in qa_pairs:
             # We embed the combination of Q and A for better retrieval
             doc = f"问：{q}\n答：{a}"
@@ -131,12 +133,14 @@ class KnowledgeBase:
 
         embeddings = self.get_embeddings(documents)
 
+        print(f"Adding {len(documents)} vectors to ChromaDB...")
         self.collection.add(
             documents=documents,
             embeddings=embeddings,
             metadatas=metadatas,
             ids=ids
         )
+        print("Vector database insertion complete.")
         return len(ids)
 
     def extract_graph_data(self, qa_pairs):
@@ -145,7 +149,9 @@ class KnowledgeBase:
             print("Cannot extract graph data: No DeepSeek API Key.")
             return
 
-        for q, a in qa_pairs:
+        print(f"Starting Knowledge Graph extraction for {len(qa_pairs)} pairs using DeepSeek...")
+        for i, (q, a) in enumerate(qa_pairs):
+            print(f"Extracting graph data for pair {i+1}/{len(qa_pairs)}...")
             prompt = f"""
             分析以下政策问答，提取其中的核心实体和关系。
             实体(Entity)包括：机构、政策名词、条件、数字指标、资格等。
@@ -190,6 +196,8 @@ class KnowledgeBase:
 
             except Exception as e:
                 print(f"Error extracting graph data for '{q}': {e}")
+
+        print("Knowledge Graph extraction complete.")
 
     def _save_graph_data(self, data):
         """Save extracted entities and relationships to SQLite."""
